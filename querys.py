@@ -32,7 +32,7 @@ def insert_user_status(userStatus: UserStatus):
                 VALUES
                 (@user_id, @status, @current_diary_id, @current_question_no, @latest_diary_date)
             '''
-    # データをStructuredパラメータに変換
+    # データをパラメータに変換
     job_config = bigquery.QueryJobConfig(
         query_parameters=[
             bigquery.ScalarQueryParameter('user_id', 'STRING', userStatus.user_id),
@@ -66,7 +66,7 @@ def insert_diary(diaryEntry: Diary) -> Optional[int]:
                 (@id, @user_id, @diary_date, @original_text, @english_text,
                  @japanese_text, @number_of_correct_answers)
             '''
-    # データをStructuredパラメータに変換
+    # データをパラメータに変換
     job_config = bigquery.QueryJobConfig(
         query_parameters=[
             bigquery.ScalarQueryParameter('id', 'INTEGER', id),
@@ -102,7 +102,7 @@ def insert_question(questionEntry: Question) -> Optional[int]:
                 VALUES
                 (@id, @diary_id, @question_no, @question_text, @explanation_text)
             '''
-    # データをStructuredパラメータに変換
+    # データをパラメータに変換
     job_config = bigquery.QueryJobConfig(
         query_parameters=[
             bigquery.ScalarQueryParameter('id', 'INTEGER', id),
@@ -136,7 +136,7 @@ def insert_option(optionEntry: Options):
                 VALUES
                 (@id, @question_id, @option_no, @option_text, @correct_flag)
             '''
-    # データをStructuredパラメータに変換
+    # データをパラメータに変換
     job_config = bigquery.QueryJobConfig(
         query_parameters=[
             bigquery.ScalarQueryParameter(
@@ -169,7 +169,7 @@ def select_user_status(user_id: str) -> Optional[UserStatus]:
     query = f'''SELECT * FROM `{table_id_user_status}`
                 WHERE user_id = @user_id
             '''
-    # データをStructuredパラメータに変換
+    # データをパラメータに変換
     job_config = bigquery.QueryJobConfig(
         query_parameters=[
             bigquery.ScalarQueryParameter(
@@ -206,7 +206,7 @@ def select_diary(id: int) -> Optional[Diary]:
     # クエリを生成
     query = f'''SELECT * FROM `{table_id_diary}` WHERE id = @id
             '''
-    # データをStructuredパラメータに変換
+    # データをパラメータに変換
     job_config = bigquery.QueryJobConfig(
         query_parameters=[
             bigquery.ScalarQueryParameter(
@@ -246,7 +246,7 @@ def select_question(diary_id: int, question_no: int) -> Optional[Question]:
     query = f'''SELECT * FROM `{table_id_question}`
                 WHERE diary_id = @diary_id AND question_no = @question_no
             '''
-    # データをStructuredパラメータに変換
+    # データをパラメータに変換
     job_config = bigquery.QueryJobConfig(
         query_parameters=[
             bigquery.ScalarQueryParameter(
@@ -288,7 +288,7 @@ def select_option(question_id: int) -> List[Options]:
                 WHERE question_id = @question_id
                 ORDER BY option_no
             '''
-    # データをStructuredパラメータに変換
+    # データをパラメータに変換
     job_config = bigquery.QueryJobConfig(
         query_parameters=[
             bigquery.ScalarQueryParameter(
@@ -327,7 +327,7 @@ def is_correct(question_id: int,option_no: int) -> bool:
     query = f'''SELECT correct_flag FROM `{table_id_options}`
                 WHERE question_id = @question_id AND option_no = @option_no AND correct_flag = true
             '''
-    # データをStructuredパラメータに変換
+    # データをパラメータに変換
     job_config = bigquery.QueryJobConfig(
         query_parameters=[
             bigquery.ScalarQueryParameter(
@@ -362,7 +362,7 @@ def update_user_status(userStatus: UserStatus):
                 SET status = @status, current_diary_id = @current_diary_id, current_question_no = @current_question_no, latest_diary_date = @latest_diary_date
                 WHERE user_id = @user_id
             '''
-    # データをStructuredパラメータに変換
+    # データをパラメータに変換
     job_config = bigquery.QueryJobConfig(
         query_parameters=[
             bigquery.ScalarQueryParameter(
@@ -397,7 +397,7 @@ def update_diary(diaryEntry: Diary):
                 SET number_of_correct_answers = @number_of_correct_answers 
                 WHERE id = @id
             '''
-    # データをStructuredパラメータに変換
+    # データをパラメータに変換
     job_config = bigquery.QueryJobConfig(
         query_parameters=[
             bigquery.ScalarQueryParameter(
@@ -425,7 +425,7 @@ def update_question(question_id: int):
                 SET mistake_flag = true
                 WHERE id = @id
             '''
-    # データをStructuredパラメータに変換
+    # データをパラメータに変換
     job_config = bigquery.QueryJobConfig(
         query_parameters=[
             bigquery.ScalarQueryParameter(
