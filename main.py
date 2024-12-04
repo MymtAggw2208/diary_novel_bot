@@ -5,6 +5,7 @@ import google.generativeai as genai
 import json
 from datetime import datetime, date
 import pytz
+import requests
 from typing import Optional
 
 from linebot import (
@@ -61,6 +62,12 @@ system_prompt_diary = f"""
         answer : 4.で作成した問題の正解。option_noに合わせる。
         explanation : 4.で作成した問題の日本語解説文。
 """
+# 質問用のシステムプロンプト
+system_prompt_asking = """
+以下の英文について質問されるので、和訳の内容も踏まえて100字程度で回答してください。
+英文：{english_text} 
+和訳：{japanese_text}
+"""
 
 '''
 メイン処理
@@ -87,8 +94,19 @@ def main(request):
     for event in events:
         # 返信用変数準備
         reply_data = []
+        # ローディングアニメーション
+        url_loading = 'https://api.line.me/v2/bot/chat/loading/start'
+        headers_loading = {
+            'Content-Type': 'application/json',
+            "Authorization": f'Bearer {channel_access_token}'
+        }
+        payload_loading = {
+            "chatId": event.source.user_id,
+            "loadingSeconds": 40
+        }
         if isinstance(event, MessageEvent):
             # メッセージを受信した場合
+            response = requests.post(url_loading, headers=headers_loading, data=json.dumps(payload_loading)) 
             if isinstance(event.message, TextMessage):
                 # タイムゾーン設定
                 timezone_japan = pytz.timezone('Asia/Tokyo')
@@ -158,11 +176,20 @@ def main(request):
                         # 処理中の問題番号が3以外の場合、次の問題を作成
                         user_status.current_question_no += 1
                         reply_data.append(edit_question(diary.id, user_status.current_question_no))
+                elif user_status.status == '2':
+                    # 質問中の場合、AI応答を生成して応答を返す
+                    response = generate_ai_message(event.message.text, "text/plain", 
+                            system_prompt_asking.format(english_text=diary.english_text, 
+                            japanese_text=diary.japanese_text))
+                    response += '\n' + '（ほかに質問があれば続けてください）'
+                    quick_Action = [QuickReplyButton(action=PostbackAction(label='問題を解く', data='try_to_answer',display_text='問題を解く'))]
+                    reply_data.append(TextSendMessage(text=response,quick_reply=QuickReply(items=quick_Action)))
                 else:
-                    # 出題中以外の場合、クイックリプライにPostbackアクションを入れた既読ボタンを作る
-                    read = [QuickReplyButton(action=PostbackAction(label='既読', data='read',display_text='読みました'))]
+                    # 上記以外の場合、クイックリプライにPostbackアクションを入れたボタンを作る
+                    quick_Action = [QuickReplyButton(action=PostbackAction(label='問題を解く', data='try_to_answer',display_text='問題を解く'))
+                        ,QuickReplyButton(action=PostbackAction(label='質問する', data='ask_question',display_text='質問する'))]
                     # 日記の英文をメッセージに編集
-                    reply_data.append(TextSendMessage(text=diary.english_text,quick_reply=QuickReply(items=read)))
+                    reply_data.append(TextSendMessage(text=diary.english_text,quick_reply=QuickReply(items=quick_Action)))
                     
                 # ユーザーステータスを更新
                 querys.update_user_status(user_status)
@@ -173,19 +200,26 @@ def main(request):
                 continue
 
         elif isinstance(event, PostbackEvent):
-            # ポストバックイベントの場合、1問目を出題
-            # ユーザーステータスを取得
+            # ポストバックイベントの場合、ユーザーステータスを取得
             user_status = querys.select_user_status(event.source.user_id)
             # 日記データを取得
             diary = querys.select_diary(user_status.current_diary_id)
-            # 処理中の問題番号を更新
-            user_status.current_question_no = 1
-            # 問題メッセージを編集
-            reply_data.append(edit_question(diary.id, user_status.current_question_no))
-            # ユーザーステータスを出題中にして更新
-            user_status.status = '1'
-            querys.update_user_status(user_status)
+            if event.postback.data == 'try_to_answer':
+                # 問題を解く場合、1問目を出題
+                # 処理中の問題番号を更新
+                user_status.current_question_no = 1
+                # 問題メッセージを編集
+                reply_data.append(edit_question(diary.id, user_status.current_question_no))
+                # ユーザーステータスを出題中にする
+                user_status.status = '1'
+            elif event.postback.data == 'ask_question':
+                # 質問する場合、ユーザーステータスを質問中にする
+                user_status.status = '2'
+                # 返信メッセージを編集
+                reply_data.append(TextSendMessage(text='質問をどうぞ。'))
 
+            # ユーザーステータス更新
+            querys.update_user_status(user_status)
             # 応答内容をLINEで送信
             line_bot_api.reply_message(event.reply_token, reply_data) 
 
